@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id           BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  name         String       @unique @db.VarChar(255)
+  users        User[]
+  capabilities RoleCapability[]
+
+  @@map("roles")
+}
+
+model Capability {
+  id          BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  name        String           @unique @db.VarChar(255)
+  description String?          @db.VarChar(255)
+  roles       RoleCapability[]
+
+  @@map("capabilities")
+}
+
+model RoleCapability {
+  roleId       BigInt     @map("role_id") @db.UnsignedBigInt
+  capabilityId BigInt     @map("capability_id") @db.UnsignedBigInt
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  capability   Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, capabilityId])
+  @@map("roles_capabilities")
+}
+
+model User {
+  id        BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid      Bytes     @unique @db.Binary(16)
+  username  String    @unique @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  roleId    BigInt    @map("role_id") @db.UnsignedBigInt
+  createdAt DateTime  @map("created_at")
+  updatedAt DateTime  @map("updated_at")
+  deleted   Boolean   @default(false)
+  deletedAt DateTime? @map("deleted_at")
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  teacher   Teacher?
+
+  @@index([roleId], map: "ix_users_role_id")
+  @@index([deleted], map: "ix_users_deleted")
+  @@index([deletedAt], map: "ix_users_deleted_at")
+  @@map("users")
+}
+
+model Region {
+  id       BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name     String    @unique @db.VarChar(255)
+  teachers Teacher[]
+
+  @@map("regions")
+}
+
+model Attachment {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  filename    String?   @db.VarChar(255)
+  savedName   String    @unique @map("saved_name") @db.VarChar(255)
+  filePath    String    @map("file_path") @db.VarChar(1024)
+  contentType String?   @map("content_type") @db.VarChar(255)
+  extension   String?   @db.VarChar(50)
+  createdAt   DateTime  @map("created_at")
+  updatedAt   DateTime  @map("updated_at")
+  deleted     Boolean   @default(false)
+  deletedAt   DateTime? @map("deleted_at")
+  personalInfo PersonalInfo?
+
+  @@index([deleted], map: "idx_attachments_deleted")
+  @@index([deletedAt], map: "idx_attachments_deleted_at")
+  @@map("attachments")
+}
+
+model PersonalInfo {
+  id                         BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  amka                       String      @unique @db.VarChar(255)
+  identityNumber             String      @unique @map("identity_number") @db.VarChar(255)
+  placeOfBirth               String      @map("place_of_birth") @db.VarChar(255)
+  municipalityOfRegistration String      @map("municipality_of_registration") @db.VarChar(255)
+  amkaFileId                 BigInt?     @unique @map("amka_file_id") @db.UnsignedBigInt
+  createdAt                  DateTime    @map("created_at")
+  updatedAt                  DateTime    @map("updated_at")
+  deleted                    Boolean     @default(false)
+  deletedAt                  DateTime?   @map("deleted_at")
+  amkaFile                   Attachment? @relation(fields: [amkaFileId], references: [id], onDelete: SetNull)
+  teacher                    Teacher?
+
+  @@index([deleted], map: "idx_personal_information_deleted")
+  @@index([deletedAt], map: "idx_personal_information_deleted_at")
+  @@map("personal_information")
+}
+
+model Teacher {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid           Bytes        @unique @db.Binary(16)
+  firstname      String       @db.VarChar(255)
+  lastname       String       @db.VarChar(255)
+  vat            String       @unique @db.VarChar(255)
+  regionId       BigInt?      @map("region_id") @db.UnsignedBigInt
+  userId         BigInt       @unique @map("user_id") @db.UnsignedBigInt
+  personalInfoId BigInt?      @unique @map("personal_info_id") @db.UnsignedBigInt
+  createdAt      DateTime     @map("created_at")
+  updatedAt      DateTime     @map("updated_at")
+  deleted        Boolean      @default(false)
+  deletedAt      DateTime?    @map("deleted_at")
+  region         Region?      @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  personalInfo   PersonalInfo? @relation(fields: [personalInfoId], references: [id], onDelete: Restrict)
+
+  @@index([regionId], map: "idx_teachers_region_id")
+  @@index([lastname], map: "idx_teachers_lastname")
+  @@index([deleted], map: "idx_teachers_deleted")
+  @@index([deletedAt], map: "idx_teachers_deleted_at")
+  @@map("teachers")
+}
